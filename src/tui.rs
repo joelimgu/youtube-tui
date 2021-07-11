@@ -1,20 +1,29 @@
-use crossterm::{cursor, event::KeyCode, execute, terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode}};
+use crossterm::{
+    cursor,
+    event::KeyCode,
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
 
 use tui::{
-    backend::CrosstermBackend,
+    backend::{
+        CrosstermBackend,
+        Backend
+    },
     layout::{Constraint, Direction, Layout},
     widgets::{Block, Borders, Widget},
     Terminal,
 };
 
-use std::io::{stdout, Error};
-
+use std::{
+    io::{stdout, Error},
+    result,
+};
 
 fn enter_terminal() {
     let mut stdout = stdout();
     execute!(stdout, EnterAlternateScreen).unwrap();
     execute!(stdout, cursor::Hide).unwrap();
-
 }
 
 fn close_terminal() {
@@ -27,7 +36,11 @@ use std::time::Duration;
 
 use crossterm::event::{poll, read, Event};
 
-fn print_events() -> crossterm::Result<()> {
+fn start_application() -> crossterm::Result<()> {
+    let stdout = stdout();
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+    draw_layouts(&mut terminal);
     loop {
         // `poll()` waits for an `Event` for a given time period
         if poll(Duration::from_millis(5000))? {
@@ -41,33 +54,42 @@ fn print_events() -> crossterm::Result<()> {
                         disable_raw_mode().unwrap();
                         std::process::exit(0);
                     }
-                },
+                }
                 Event::Mouse(event) => println!("{:?}", event),
-                Event::Resize(width, height) => println!("New size {}x{}", width, height),
+                Event::Resize(width, height) => {
+                    draw_layouts(&mut terminal);
+                }
             }
-        } else {
-            // Timeout expired and no `Event` is available
         }
     }
-    Ok(())
 }
-
-pub fn render() -> Result<(), Error>{
-    enable_raw_mode().unwrap();
-
-    let stdout = stdout();
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-    enter_terminal();
+fn draw_layouts<B: Backend> (terminal :&mut Terminal<B>){
     terminal.draw(|f| {
-        let size = f.size();
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(1)
+            .constraints(
+                [
+                    Constraint::Percentage(10),
+                    Constraint::Percentage(80),
+                    Constraint::Percentage(10)
+                ].as_ref()
+            )
+            .split(f.size());
         let block = Block::default()
-            .title("Block")
-            .borders(Borders::ALL);
-        f.render_widget(block, size);
-    })?;
-    let _x = print_events();
-
+             .title("Block")
+             .borders(Borders::ALL);
+        f.render_widget(block, chunks[0]);
+        let block = Block::default()
+             .title("Block 2")
+             .borders(Borders::ALL);
+        f.render_widget(block, chunks[1]);
+    });
+}
+pub fn render() -> Result<(), Error> {
+    enable_raw_mode().unwrap();
+    enter_terminal();
+    start_application().unwrap();
     //never executed
     close_terminal();
     Ok(())
