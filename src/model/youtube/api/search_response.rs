@@ -1,7 +1,5 @@
 #![allow(non_snake_case)]
 
-#[rustfmt::skip]
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
