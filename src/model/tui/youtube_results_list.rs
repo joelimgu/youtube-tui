@@ -1,16 +1,23 @@
+use crate::model::tui::widgets::base_widget::EventHandler;
 use crate::model::youtube::api::search_response::SearchResponse;
-use tui::widgets::{Block, Borders};
+use async_trait::async_trait;
+use crossterm::event::{Event, KeyCode};
+use tui::buffer::Buffer;
+use tui::layout::Rect;
+use tui::widgets::{Block, Borders, StatefulWidget, Widget};
 use tui::{
     style::{Color, Modifier, Style},
     text::{Span, Spans},
     widgets::{List, ListItem, ListState},
 };
 
+#[derive(Clone, Debug)]
 pub struct ResList<'a> {
     pub(crate) list: List<'a>,
     pub state: ListState,
     pub length: u32,
-    current: u32,
+    pub current: u32,
+    pub(crate) res: SearchResponse,
 }
 
 impl ResList<'_> {
@@ -38,6 +45,7 @@ impl ResList<'_> {
             state,
             length,
             current: 0,
+            res: search_result,
         }
     }
 
@@ -53,5 +61,25 @@ impl ResList<'_> {
             self.current -= 1;
             self.state.select(Some(self.current as usize))
         }
+    }
+}
+
+#[async_trait]
+impl EventHandler for ResList<'_> {
+    async fn handle_events(&mut self, event: Event) {
+        match event {
+            Event::Key(key) => match key.code {
+                KeyCode::Up => self.select_prev(),
+                KeyCode::Down => self.select_next(),
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+}
+
+impl Widget for ResList<'_> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        StatefulWidget::render(self.list, area, buf, &mut self.state.clone());
     }
 }

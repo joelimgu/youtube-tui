@@ -1,18 +1,33 @@
-use std::{fs, io};
-
+use std::fs;
 mod model;
 
 use model::youtube::api::search_response::SearchResponse;
+extern crate jpeg_decoder as jpeg;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    let mut keyword = String::new();
-    print!("Enter your search term: ");
+    /* get thumbnail */
+    // let res = reqwest::get("https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg")
+    //     .await
+    //     .unwrap();
+    //
+    // let bytes: Bytes = res.bytes().await.unwrap();
+    // let img: RgbImage = ImageReader::new(Cursor::new(&bytes))
+    //     .with_guessed_format()
+    //     .expect("can't guess the format")
+    //     .decode()
+    //     .expect("Could not decode the image")
+    //     .to_rgb8();
 
-    io::stdin()
-        .read_line(&mut keyword)
-        .expect("Sorry, input could not be read");
+    // video_player::print_img(img);
+    /*
+        let mut keyword = String::new();
+        print!("Enter your search term: ");
 
+        io::stdin()
+            .read_line(&mut keyword)
+            .expect("Sorry, input could not be read");
+    */
     let contents = fs::read_to_string("/home/joel/Documents/Code/youtube-tui/src/config.json")
         .expect("Something went wrong reading the file");
 
@@ -20,7 +35,7 @@ async fn main() {
         serde_json::from_str(&contents).expect("JSON was not well-formatted");
 
     let result = model::youtube::api::requests::search_videos::search(
-        keyword.as_str(),
+        "hermitcraft",
         &config["key"].to_string(),
     )
     .await;
@@ -28,8 +43,8 @@ async fn main() {
     let search_result: SearchResponse = serde_json::from_str(&result.expect("http request failed"))
         .expect("failed parsing the json");
 
-    let mut screen = model::tui::screen::Screen::new(search_result);
-    let _ = screen.render();
+    let mut screen = model::tui::screen::Screen::new(search_result).await;
+    let _ = screen.render().await;
 }
 
 // async fn download(){
