@@ -1,4 +1,5 @@
 use crate::model::tui::widgets::base_widget::EventHandler;
+use crate::model::tui::widgets::screens::Widgets;
 use crate::model::youtube::api::search_response::SearchResponse;
 use async_trait::async_trait;
 use crossterm::event::{Event, KeyCode};
@@ -50,7 +51,7 @@ impl ResList<'_> {
     }
 
     pub fn select_next(&mut self) {
-        if self.current < self.length {
+        if self.current < self.length - 1 {
             self.current += 1;
             self.state.select(Some(self.current as usize))
         }
@@ -66,7 +67,7 @@ impl ResList<'_> {
 
 #[async_trait]
 impl EventHandler for ResList<'_> {
-    async fn handle_events(&mut self, event: Event) {
+    async fn handle_events<'a>(&mut self, event: Event) -> Option<Widgets<'a>> {
         match event {
             Event::Key(key) => match key.code {
                 KeyCode::Up => self.select_prev(),
@@ -75,6 +76,7 @@ impl EventHandler for ResList<'_> {
             },
             _ => {}
         }
+        None
     }
 }
 

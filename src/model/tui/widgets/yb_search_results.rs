@@ -1,4 +1,5 @@
 use crate::model::tui::screen::{Screen, SearchResponse};
+use crate::model::tui::widgets::screens::Widgets;
 use crate::model::tui::{
     widgets::{base_widget::EventHandler, image_widget::Image},
     youtube_results_list::ResList,
@@ -16,14 +17,14 @@ use tui::widgets::Widget;
 #[derive(Clone)]
 pub struct YBSearchResults<'a> {
     list: ResList<'a>,
-    thumbnail: Image,
+    thumbnail: Image, // todo caching
     thumbnail_url: String,
     area: Option<(Rect, Buffer)>,
 }
 
 #[async_trait]
 impl EventHandler for YBSearchResults<'_> {
-    async fn handle_events(&mut self, event: Event) {
+    async fn handle_events<'a>(&mut self, event: Event) -> Option<Widgets<'a>> {
         self.list.handle_events(event).await;
         match event {
             Event::Key(key) => match key.code {
@@ -38,6 +39,7 @@ impl EventHandler for YBSearchResults<'_> {
             },
             _ => {}
         }
+        None
     }
 }
 

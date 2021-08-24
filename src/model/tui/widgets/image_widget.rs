@@ -1,5 +1,6 @@
 // todo use crossterm insted to be consistent
 use crate::model::tui::widgets::base_widget::EventHandler;
+use crate::model::tui::widgets::screens::Widgets;
 use async_trait::async_trait;
 use crossterm::event::Event;
 use image::RgbImage;
@@ -20,7 +21,9 @@ impl Image {
 
 #[async_trait]
 impl EventHandler for Image {
-    async fn handle_events(&mut self, _event: Event) {}
+    async fn handle_events<'a>(&mut self, _event: Event) -> Option<Widgets<'a>> {
+        None
+    }
 }
 
 impl Widget for Image {

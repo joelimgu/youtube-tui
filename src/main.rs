@@ -28,22 +28,23 @@ async fn main() {
             .read_line(&mut keyword)
             .expect("Sorry, input could not be read");
     */
-    let contents = fs::read_to_string("/home/joel/Documents/Code/youtube-tui/src/config.json")
-        .expect("Something went wrong reading the file");
+    // let contents = fs::read_to_string("/home/joel/Documents/Code/youtube-tui/src/config.json")
+    //     .expect("Something went wrong reading the file");
+    //
+    // let config: serde_json::Value =
+    //     serde_json::from_str(&contents).expect("JSON was not well-formatted");
+    //
+    // let result = model::youtube::api::requests::search_videos::search(
+    //     "hermitcraft",
+    //     &config["key"].to_string(),
+    // )
+    // .await;
+    //
+    // let search_result: SearchResponse = serde_json::from_str(&result.expect("http request failed"))
+    //     .expect("failed parsing the json");
 
-    let config: serde_json::Value =
-        serde_json::from_str(&contents).expect("JSON was not well-formatted");
-
-    let result = model::youtube::api::requests::search_videos::search(
-        "hermitcraft",
-        &config["key"].to_string(),
-    )
-    .await;
-
-    let search_result: SearchResponse = serde_json::from_str(&result.expect("http request failed"))
-        .expect("failed parsing the json");
-
-    let mut screen = model::tui::screen::Screen::new(search_result).await;
+    // let mut screen = model::tui::screen::Screen::new(search_result).await;
+    let mut screen = model::tui::screen::Screen::new_input();
     let _ = screen.render().await;
 }
 
