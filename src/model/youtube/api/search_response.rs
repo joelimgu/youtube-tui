@@ -20,13 +20,13 @@ pub struct PageInfo {
 pub struct SearchResult {
     kind: String,
     etag: String,
-    id: Id,
+    pub id: Id,
     pub(crate) snippet: Snippet,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Id {
     kind: String,
-    videoId: String,
+    pub videoId: String,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Snippet {

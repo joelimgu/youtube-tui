@@ -3,24 +3,25 @@ use crate::model::tui::screen::Screen;
 use crate::model::tui::widgets::base_widget::EventHandler;
 use crate::model::tui::widgets::screens::Widgets;
 use crate::model::tui::widgets::yb_search_results::YBSearchResults;
-use crate::model::youtube::api::search_response::SearchResponse;
 use async_trait::async_trait;
 use crossterm::event::{Event, KeyCode};
 use std::fs;
 use tui::buffer::Buffer;
-use tui::layout::{Alignment, Rect};
+use tui::layout::{Alignment, Constraint, Layout, Rect};
 use tui::style::Style;
 use tui::widgets::{Block, Borders, Paragraph, Widget, Wrap};
 
 #[derive(Clone)]
 pub struct Input {
     text: String,
+    message: Option<String>,
 }
 
 impl Input {
     pub fn new() -> Input {
         Input {
             text: String::from(""),
+            message: None,
         }
     }
 
@@ -29,12 +30,37 @@ impl Input {
     }
 
     fn render_paragraph(&self, area: Rect, buf: &mut Buffer) {
+        let chunks = Layout::default()
+            .margin(2)
+            .constraints(
+                [
+                    Constraint::Percentage(30),
+                    Constraint::Length(3),
+                    Constraint::Length(3),
+                    Constraint::Min(2),
+                ]
+                .as_ref(),
+            )
+            .split(area);
+
         let paragraph = Paragraph::new(self.text.clone())
             .block(Block::default().title("Search: ").borders(Borders::ALL))
             .style(Style::default())
             .alignment(Alignment::Left)
             .wrap(Wrap { trim: true });
-        Widget::render(paragraph, area, buf);
+
+        match &self.message {
+            Some(msg) => {
+                let message = Paragraph::new("Error in search: ".to_owned() + msg)
+                    .block(Block::default())
+                    .style(Style::default())
+                    .alignment(Alignment::Left)
+                    .wrap(Wrap { trim: true });
+                Widget::render(message, chunks[2], buf);
+            }
+            None => {}
+        };
+        Widget::render(paragraph, chunks[1], buf);
     }
 
     fn edit_text(&mut self, key_code: KeyCode) {
@@ -99,13 +125,16 @@ impl EventHandler for Input {
                     )
                     .await;
 
-                    let search_result: SearchResponse =
-                        serde_json::from_str(&result.expect("http request failed"))
-                            .expect("failed parsing the json");
-
-                    Some(Widgets::YBSearchResults(
-                        YBSearchResults::new_from_res(search_result).await,
-                    ))
+                    let search_result = serde_json::from_str(&result.expect("http request failed"));
+                    match search_result {
+                        Ok(res) => Some(Widgets::YBSearchResults(
+                            YBSearchResults::new_from_res(res).await,
+                        )),
+                        Err(err) => {
+                            self.message = Some(err.to_string());
+                            None
+                        }
+                    }
                 }
                 _ => {
                     self.edit_text(key.code);

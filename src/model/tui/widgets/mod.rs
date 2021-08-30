@@ -3,5 +3,7 @@ pub mod clear_area;
 pub mod image_widget;
 pub mod input;
 pub mod screens;
+pub mod video_downloader;
+pub mod video_player;
 pub mod video_selector;
 pub mod yb_search_results;

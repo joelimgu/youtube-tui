@@ -1,5 +1,7 @@
 use crate::model::tui::screen::{Screen, SearchResponse};
+use crate::model::tui::widgets::clear_area;
 use crate::model::tui::widgets::screens::Widgets;
+use crate::model::tui::widgets::video_downloader;
 use crate::model::tui::{
     widgets::{base_widget::EventHandler, image_widget::Image},
     youtube_results_list::ResList,
@@ -28,18 +30,31 @@ impl EventHandler for YBSearchResults<'_> {
         self.list.handle_events(event).await;
         match event {
             Event::Key(key) => match key.code {
-                KeyCode::Esc => Screen::exit_app(),
+                KeyCode::Esc => {
+                    Screen::exit_app();
+                    None
+                }
                 KeyCode::Up => {
                     self.update_thumbnail().await;
+                    None
                 }
                 KeyCode::Down => {
                     self.update_thumbnail().await;
+                    None
                 }
-                _ => {}
+                KeyCode::Enter => {
+                    clear_area::clear();
+                    Some(Widgets::DownloadScreen(video_downloader::Download::new(
+                        self.list.res.items[self.list.current as usize]
+                            .id
+                            .videoId
+                            .clone(),
+                    )))
+                }
+                _ => None,
             },
-            _ => {}
+            _ => None,
         }
-        None
     }
 }
 
@@ -68,7 +83,6 @@ impl YBSearchResults<'_> {
     }
 
     async fn update_thumbnail(&mut self) {
-        // "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
         let http_res = reqwest::get(
             self.list.res.items[self.list.current as usize]
                 .snippet

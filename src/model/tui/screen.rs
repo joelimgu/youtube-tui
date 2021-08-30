@@ -13,7 +13,7 @@ use crossterm::{
 };
 use tui::layout::Alignment;
 use tui::style::{Color, Style};
-use tui::widgets::{Block, Borders, Paragraph, Widget, Wrap};
+use tui::widgets::{Paragraph, Widget};
 use tui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
@@ -22,7 +22,6 @@ use tui::{
 
 use crate::model::tui::widgets::base_widget::EventHandler;
 use crate::model::tui::widgets::input;
-use crate::model::tui::widgets::screens::Widgets::Input;
 pub use crate::model::{
     tui::{
         widgets::{
@@ -32,8 +31,6 @@ pub use crate::model::{
     },
     youtube::api::search_response::SearchResponse,
 };
-use serde::__private::ser::constrain;
-use tui::widgets::canvas::Rectangle;
 
 pub struct Screen<'a> {
     renders_done: u32,
@@ -43,16 +40,6 @@ pub struct Screen<'a> {
 }
 
 impl<'screen> Screen<'screen> {
-    pub async fn new<'a>(res: SearchResponse) -> Screen<'a> {
-        let (tx, rx) = mpsc::channel();
-        Screen {
-            renders_done: 0,
-            tx,
-            rx,
-            main_screen: Widgets::YBSearchResults(YBSearchResults::new_from_res(res).await),
-        }
-    }
-
     pub fn new_input<'a>() -> Screen<'a> {
         let (tx, rx) = mpsc::channel();
         Screen {
@@ -82,46 +69,46 @@ impl<'screen> Screen<'screen> {
     }
 
     pub async fn handle_events<'c>(&'c mut self) {
-        let event = self
-            .rx
-            .recv()
-            .expect("Err while recievent the events in the reciever")
-            .unwrap();
+        let mut new_screen: Option<Widgets<'screen>> = None;
 
-        let new_screen: Option<Widgets<'screen>> = match &mut self.main_screen {
-            Widgets::ResList(res_list) => {
-                match self
-                    .rx
-                    .recv()
-                    .expect("Err while recievent the events in the reciever")
-                    .unwrap()
-                {
-                    Event::Key(event) => match event.code {
-                        KeyCode::Esc => {
-                            Screen::exit_app();
-                            None
-                        }
-                        KeyCode::Up => {
-                            res_list.select_prev();
-                            None
-                        }
-                        KeyCode::Down => {
-                            res_list.select_next();
+        let received = self.rx.recv_timeout(Duration::from_millis(1000 / 60));
+
+        match received {
+            Ok(e) => {
+                let event = e.expect("error while receiving events");
+                new_screen = match &mut self.main_screen {
+                    Widgets::ResList(res_list) => match event {
+                        Event::Key(event) => match event.code {
+                            KeyCode::Esc => {
+                                Screen::exit_app();
+                                None
+                            }
+                            KeyCode::Up => {
+                                res_list.select_prev();
+                                None
+                            }
+                            KeyCode::Down => {
+                                res_list.select_next();
+                                None
+                            }
+                            _ => None,
+                        },
+                        Event::Resize(_, _) => {
+                            clear_area::clear();
                             None
                         }
                         _ => None,
                     },
-                    Event::Resize(_, _) => {
-                        clear_area::clear();
-                        None
-                    }
+                    Widgets::YBSearchResults(search_res) => search_res.handle_events(event).await,
+                    Widgets::Input(input) => input.handle_events(event).await,
+                    Widgets::DownloadScreen(d) => d.handle_events(event).await,
+                    Widgets::VideoPlayer(v) => v.handle_events(event).await,
                     _ => None,
-                }
+                };
             }
-            Widgets::YBSearchResults(search_res) => search_res.handle_events(event).await,
-            Widgets::Input(input) => input.handle_events(event).await.to_owned(),
-            _ => None,
-        };
+            _ => {}
+        }
+
         match new_screen {
             Some(screen) => self.main_screen = screen,
             None => {}
@@ -134,7 +121,7 @@ impl<'screen> Screen<'screen> {
         let stdout = stdout();
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend).expect("can't access the terminal");
-        // let res_list: &mut ResList = &mut self.main_screen;
+
         terminal
             .draw(|frame| {
                 let size = frame.size();
@@ -182,40 +169,39 @@ impl<'screen> Screen<'screen> {
         let mut terminal = Terminal::new(backend).expect("can't access the terminal");
 
         loop {
-            {
-                let screen = self.main_screen.clone();
-                terminal
-                    .draw(|frame| {
-                        match &screen {
-                            Widgets::ResList(_res_list) => {
-                                // Screen::render_results(&mut res_list.clone(), img.clone());
-                            }
-                            Widgets::YBSearchResults(yb_search_results) => {
-                                Screen::render_results(yb_search_results.clone());
-                            }
-                            Widgets::Input(input) => {
-                                let size = frame.size();
-                                let chunks = Layout::default()
-                                    .margin(2)
-                                    .constraints(
-                                        [
-                                            Constraint::Percentage(30),
-                                            Constraint::Length(3),
-                                            Constraint::Min(2),
-                                        ]
-                                        .as_ref(),
-                                    )
-                                    .split(size);
+            let screen = &mut self.main_screen;
+            terminal
+                .draw(|frame| {
+                    let size = frame.size();
 
-                                frame.render_widget(input.clone(), chunks[1]);
-                            }
-                            _ => {}
+                    match screen {
+                        Widgets::ResList(_res_list) => {
+                            // Screen::render_results(&mut res_list.clone(), img.clone());
                         }
-                    })
-                    .expect("Can't draw the screen");
+                        Widgets::YBSearchResults(yb_search_results) => {
+                            // todo render this correctly
+                            Screen::render_results(yb_search_results.clone());
+                        }
+                        Widgets::Input(input) => {
+                            frame.render_widget(input.clone(), size);
+                        }
+                        Widgets::DownloadScreen(d) => {
+                            frame.render_widget(d.clone(), size);
+                        }
+                        Widgets::VideoPlayer(p) => {
+                            frame.render_widget(p, size);
+                        }
+                        _ => {}
+                    }
+                })
+                .expect("Can't draw the screen");
+
+            match &screen {
+                _ => {
+                    self.handle_events().await;
+                }
             }
 
-            self.handle_events().await;
             self.renders_done += 1;
         }
     }
