@@ -32,6 +32,7 @@ impl Widget for &mut VideoPlayer {
                 self.video = Some(vid);
             }
             Some(vid) => {
+                // todo handle end of the video
                 let frame = vid.next().unwrap().unwrap().image;
                 Image::print_img(frame, area);
             }
